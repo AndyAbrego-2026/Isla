@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nuestro Mundo</title>
+<meta name="theme-color" content="#2b9ccb">
+<meta name="description" content="Un mundo que crece con nuestra historia.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --ink:#2b2a33; --muted:#7a7685; --paper:#fffaf2; --line:#eadfce;
+  --heart:#e0566b; --green:#3f9b5f; --glass:rgba(22,32,62,.5);
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#2b9ccb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+button{font:inherit;color:inherit;cursor:pointer}
+.hud{position:fixed;left:0;right:0;top:0;padding:calc(12px + var(--safe-t)) 14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}
+.hud>*{pointer-events:auto}
+.pill{background:var(--glass);color:#fff;border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:999px;padding:9px 15px;font-weight:650;font-size:15px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.pill small{font-weight:500;opacity:.8;font-size:12px;display:block;line-height:1.1}
+.round{width:44px;height:44px;border-radius:50%;padding:0;justify-content:center;font-size:20px}
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--safe-b));display:flex;gap:6px;background:var(--glass);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:26px;padding:6px;box-shadow:0 8px 28px rgba(0,0,0,.25)}
+.dock button{background:transparent;border:0;color:#fff;border-radius:20px;padding:9px 16px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:600;min-width:84px}
+.dock button span{font-size:22px;line-height:1}
+.dock button:active{background:rgba(255,255,255,.18)}
+.dock .main{background:var(--heart)}
+.toast{position:fixed;left:50%;top:calc(70px + var(--safe-t));transform:translate(-50%,-12px);background:#fff;color:var(--ink);padding:10px 16px;border-radius:14px;font-weight:600;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.3s;max-width:88vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+dialog.sheet{border:0;padding:0;margin:auto auto 0;width:min(560px,100%);max-width:100%;max-height:90dvh;border-radius:24px 24px 0 0;background:var(--paper);color:var(--ink);box-shadow:0 -10px 40px rgba(0,0,0,.35);overflow:hidden}
+dialog.sheet::backdrop{background:rgba(10,16,40,.45)}
+.sheet-in{padding:18px 18px calc(22px + var(--safe-b));overflow:auto;max-height:90dvh}
+.grab{width:42px;height:5px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
+h2{margin:0 0 4px;font-size:21px}
+p.sub{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.4}
+label.f{display:block;font-size:13px;font-weight:650;margin:12px 0 5px;color:#55515f}
+input[type=text],input[type=date],textarea,select{width:100%;font:inherit;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+textarea{min-height:84px;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--heart)}
+.btn{border:0;border-radius:13px;padding:12px 16px;font-weight:700;background:var(--heart);color:#fff;width:100%;margin-top:14px;font-size:15px}
+.btn.alt{background:#efe7d8;color:var(--ink)}
+.btn.ok{background:var(--green)}
+.btn.danger{background:#fff;color:#b3261e;border:1.5px solid #f0c9c5}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.row.fit>*{flex:none}
+.tabs{display:flex;gap:6px;margin:14px 0 8px}
+.tabs button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:8px;font-weight:650;font-size:14px}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.chk{width:30px;height:30px;border-radius:50%;border:2px solid #cfc3ad;background:#fff;flex:none;font-weight:800;color:#fff;font-size:16px;padding:0}
+.chk.on{background:var(--green);border-color:var(--green)}
+.wt{flex:1;min-width:0}
+.wt b{display:block;font-weight:650;font-size:15px;line-height:1.3}
+.wt small{color:var(--muted);font-size:12.5px}
+li.done .wt b{text-decoration:line-through;opacity:.6}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 10px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-size:13px;line-height:1.2}
+.chip:active{background:#f3ebdc}
+details{margin:12px 0 0;border:1.5px dashed var(--line);border-radius:14px;padding:10px 12px}
+details summary{font-weight:700;cursor:pointer;font-size:14.5px}
+details h4{margin:12px 0 0;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.types label{border:1.5px solid var(--line);background:#fff;border-radius:13px;padding:10px 4px;text-align:center;font-size:12.5px;font-weight:650;cursor:pointer;line-height:1.3}
+.types label span{display:block;font-size:24px}
+.types input{position:absolute;opacity:0;pointer-events:none}
+.types input:checked+div{color:var(--heart)}
+.types label:has(input:checked){border-color:var(--heart);background:#fff1f3}
+.photo{width:100%;border-radius:14px;margin-top:6px;display:block;max-height:46dvh;object-fit:cover}
+.meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13.5px;margin-bottom:6px}
+.big{font-size:42px;line-height:1}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.stat div{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:12px}
+.stat b{display:block;font-size:22px}
+.stat small{color:var(--muted);font-size:12.5px}
+.seg{display:flex;gap:6px}
+.seg label{flex:1;border:1.5px solid var(--line);border-radius:11px;background:#fff;padding:9px 4px;text-align:center;font-weight:650;font-size:14px;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--ink);color:#fff;border-color:var(--ink)}
+.note{font-size:13px;color:var(--muted);line-height:1.45;margin-top:14px;background:#f6efe1;border-radius:12px;padding:10px 12px}
+.empty{text-align:center;color:var(--muted);padding:22px 8px;font-size:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Isla de Nuestro Mundo"></canvas>
+
+<div class="hud">
+  <button class="pill" id="days" aria-label="Ver nuestro árbol"><span>💛</span><span><b id="daysN">—</b><small id="daysT">días juntos</small></span></button>
+  <button class="pill round" id="clock" aria-label="Cambiar hora del día">🌗</button>
+</div>
+
+<nav class="dock" aria-label="Menú">
+  <button id="bList"><span>📜</span>Nuestra lista</button>
+  <button id="bAdd" class="main"><span>✨</span>Nuevo hito</button>
+  <button id="bSet"><span>⚙️</span>Ajustes</button>
+</nav>
+
+<div class="toast" id="toast" role="status"></div>
+
+<dialog class="sheet" id="sheet"><div class="sheet-in"><div class="grab"></div><div id="sbody"></div></div></dialog>
+
+<script>
+'use strict';
+/* ============ utilidades ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const smooth=(a,b,x)=>{x=clamp((x-a)/(b-a),0,1);return x*x*(3-2*x)};
+function rnd(seed){let t=(seed+0x6D2B79F5)|0;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}
+function hash(str){let x=2166136261;for(let i=0;i<str.length;i++){x=Math.imul(x^str.charCodeAt(i),16777619)}return x>>>0}
+const pad=n=>String(n).padStart(2,'0');
+function todayISO(){const n=new Date();return n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate())}
+function parseISO(s){const p=String(s||'').split('-').map(Number);return new Date(p[0]||2000,(p[1]||1)-1,p[2]||1)}
+function fmtDate(s){try{return parseISO(s).toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s}}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2600)}
+
+/* ============ tipos ============ */
+const MT={
+  viaje:{e:'✈️',n:'Viaje',b:'lighthouse'},
+  celebracion:{e:'🎉',n:'Celebración',b:'tent'},
+  logro:{e:'🏆',n:'Logro',b:'monument'},
+  recuerdo:{e:'💛',n:'Recuerdo',b:'house'},
+  tormenta:{e:'⛈️',n:'Tormenta',b:'cottage'}
+};
+const WC={
+  aventura:{e:'🏕️',n:'Aventura',b:'windmill'},
+  comida:{e:'🍽️',n:'Comida',b:'stall'},
+  viaje:{e:'✈️',n:'Viaje',b:'lighthouse'},
+  hogar:{e:'🏡',n:'Hogar',b:'house'},
+  aprender:{e:'📚',n:'Aprender',b:'monument'},
+  suenos:{e:'🌟',n:'Sueños',b:'garden'}
+};
+const IDEAS={
+  aventura:['Ver un amanecer juntos','Acampar bajo las estrellas','Caminar hasta una cascada','Subirnos a un globo aerostático','Bañarnos en un río o una laguna','Hacer un picnic de noche','Ver una lluvia de estrellas','Montar a caballo','Noche de cine en una carpa'],
+  comida:['Cocinar un plato nuevo juntos','Probar un restaurante que nunca hemos probado','Hacer pizza desde cero','Recorrer puestos de comida callejera','Desayuno sorpresa en la cama','Hacer una cata de postres','Preparar la cena favorita del otro'],
+  viaje:['Conocer una ciudad nueva','Viajar a la playa','Hacer un viaje sin planear nada','Viajar fuera del país','Ir a un pueblo pequeño sin turistas','Ver el mar de noche','Hacer un viaje por carretera'],
+  hogar:['Decorar juntos nuestro rincón','Sembrar una planta y cuidarla','Maratón de nuestra serie favorita','Armar un álbum físico de fotos','Escribirnos cartas para abrir en un año','Un día entero sin celular, solo nosotros'],
+  aprender:['Tomar una clase de baile','Aprender algo nuevo juntos (idioma, instrumento)','Hacer un taller de cerámica','Leer el mismo libro y comentarlo','Aprender a cocinar un plato de otro país'],
+  suenos:['Escribir nuestras metas a 5 años','Ahorrar para algo grande juntos','Hacernos una sesión de fotos','Ir a un concierto','Grabar un video de "nosotros" cada año','Un detalle sorpresa sin motivo']
+};
+
+/* ============ estado ============ */
+const KEY='nuestro-mundo.v1';
+function blank(){return{v:1,ready:false,names:{a:'',b:''},since:todayISO(),nextSlot:0,wishes:[],miles:[],settings:{time:'auto'}}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.v===1){const b=blank();return Object.assign(b,s,{settings:Object.assign(b.settings,s.settings||{})})}}catch(e){}return null}
+let state=load()||blank();
+function commit(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('No pude guardar. Revisa el espacio del teléfono.')}}
+
+/* fotos en IndexedDB (aparte, para no inflar el estado) */
+const idb={
+  db:null,
+  open(){return new Promise((res,rej)=>{if(!window.indexedDB)return rej(new Error('sin IndexedDB'));const r=indexedDB.open('nuestro-mundo-fotos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
+  tx(mode){return this.db.transaction('p',mode).objectStore('p')},
+  req(r){return new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+  put(k,v){return this.db?this.req(this.tx('readwrite').put(v,k)):Promise.reject()},
+  get(k){return this.db?this.req(this.tx('readonly').get(k)):Promise.resolve(null)},
+  del(k){return this.db?this.req(this.tx('readwrite').delete(k)):Promise.resolve()},
+  keys(){return this.db?this.req(this.tx('readonly').getAllKeys()):Promise.resolve([])}
+};
+const dbReady=idb.open().catch(()=>{});
+
+async function compress(file,max=960){
+  let bmp;
+  try{bmp=await createImageBitmap(file)}catch(e){
+    bmp=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file)});
+  }
+  const w=bmp.width||bmp.naturalWidth,h=bmp.height||bmp.naturalHeight;
+  const k=Math.min(1,max/Math.max(w,h));
+  const c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  return new Promise(r=>c.toBlob(r,'image/jpeg',0.78));
+}
+
+/* ============ tiempo juntos ============ */
+function dayCount(){const s=parseISO(state.since),n=new Date(),t0=new Date(n.getFullYear(),n.getMonth(),n.getDate());return Math.max(0,Math.round((t0-s)/864e5))}
+function ymd(){
+  const s=parseISO(state.since),n=new Date();
+  let y=n.getFullYear()-s.getFullYear(),m=n.getMonth()-s.getMonth(),d=n.getDate()-s.getDate();
+  if(d<0){m--;d+=new Date(n.getFullYear(),n.getMonth(),0).getDate()}
+  if(m<0){y--;m+=12}
+  if(y<0)return{y:0,m:0,d:0,months:0};
+  return{y,m,d,months:y*12+m};
+}
+function nextAnniv(){
+  const s=parseISO(state.since),n=new Date(),t0=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  const a=new Date(n.getFullYear(),s.getMonth(),s.getDate());
+  if(a<t0)a.setFullYear(a.getFullYear()+1);
+  return{date:a,days:Math.round((a-t0)/864e5),years:a.getFullYear()-s.getFullYear()};
+}
+function plural(n,u,p){return n+' '+(n===1?u:p)}
+function ymdText(){
+  const v=ymd(),out=[];
+  if(v.y)out.push(plural(v.y,'año','años'));
+  if(v.m)out.push(plural(v.m,'mes','meses'));
+  if(v.d||!out.length)out.push(plural(v.d,'día','días'));
+  return out.length>1?out.slice(0,-1).join(', ')+' y '+out[out.length-1]:out[0];
+}
+function stageName(d){return d<7?'Semilla':d<30?'Brote':d<180?'Arbolito':d<365?'Árbol joven':d<1095?'Árbol':d<1825?'Árbol grande':'Árbol gigante'}
+
+/* ============ geometría de la isla ============ */
+const slotPos=i=>{const a=i*2.39996323+0.6,j=(rnd(i*7+1)-.5)*8,r=80+30*Math.sqrt(i)+j;return{x:Math.cos(a)*r,y:Math.sin(a)*r*0.6}};
+const islandR=()=>80+30*Math.sqrt(Math.max(state.nextSlot,5))+75;
+const edge=a=>1+0.05*Math.sin(3*a+1)+0.035*Math.sin(5*a+2)+0.02*Math.sin(9*a);
+
+/* ============ canvas ============ */
+const cv=$('#c'),ctx=cv.getContext('2d');
+let W=0,H=0,dpr=1;
+const cam={x:0,y:-20,z:1,fit:1,moved:false,tgt:null};
+function resize(){
+  dpr=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);fit();
+}
+function fit(){
+  const R=islandR();
+  cam.fit=Math.min(W/(2*R*1.25),(H-190)/(2*R*0.6*1.35+130));
+  if(!cam.moved){cam.z=cam.fit;cam.x=0;cam.y=-24}
+}
+function setZoom(z){cam.z=clamp(z,cam.fit*0.55,cam.fit*4);cam.moved=true}
+addEventListener('resize',resize);
+
+/* colores día/noche */
+const hex=s=>[1,3,5].map(i=>parseInt(s.substr(i,2),16));
+const mixc=(a,b,t)=>'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')+')';
+const PAL={
+  wA:[hex('#58c7e0'),hex('#1c3a73')],wB:[hex('#2b9ccb'),hex('#0d2048')],
+  sand:[hex('#f3e1a6'),hex('#78768a')],g1:[hex('#82d36c'),hex('#2f6a55')],g2:[hex('#62bb5b'),hex('#27564d')],
+  leaf1:[hex('#4fae55'),hex('#245f4a')],leaf2:[hex('#69c564'),hex('#2d7156')]
+};
+const pc=(k,d)=>mixc(PAL[k][1],PAL[k][0],d);
+let dispD=1;
+function dayTarget(){
+  const m=state.settings.time;
+  if(m==='day')return 1;if(m==='night')return 0;
+  const n=new Date(),h=n.getHours()+n.getMinutes()/60;
+  return smooth(-0.1,0.3,Math.sin(Math.PI*(h-6)/12));
+}
+
+/* ---- constructores de edificios (base en 0,0) ---- */
+const WALLS=['#f6e7c8','#f3d3c4','#d8e8f2','#efe3f5','#e4efd0'],ROOFS=['#d9534f','#4a7fc1','#e0a23a','#7a5bb5','#2f9e8f'];
+const FLOW=['#ff7aa2','#ffd24a','#ffffff','#b79bff','#ff9a56'];
+const R_=(x,y,w,h)=>ctx.fillRect(x,y,w,h);
+function poly(pts,fill){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
+function shadow(w){ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(0,2,w,w*.33,0,0,7);ctx.fill()}
+const B={
+  house(s){shadow(26);ctx.fillStyle=WALLS[s%5];R_(-16,-22,32,22);poly([[-22,-22],[0,-44],[22,-22]],ROOFS[(s>>3)%5]);ctx.fillStyle='#8a5a3c';R_(-4,-13,8,13);ctx.fillStyle='#ffe9a8';R_(7,-18,7,7);R_(-14,-18,7,7)},
+  cottage(s){shadow(24);ctx.fillStyle='#c99a6b';R_(-14,-18,28,18);ctx.fillStyle='#6b4f3a';R_(7,-36,6,12);poly([[-20,-18],[0,-38],[20,-18]],'#6b4f3a');ctx.fillStyle='#8a5a3c';R_(-4,-11,8,11);ctx.fillStyle='#ffe9a8';R_(6,-14,6,6)},
+  lighthouse(){shadow(18);poly([[-10,0],[-6.5,-54],[6.5,-54],[10,0]],'#fbfbf6');
+    poly([[-9.2,-14],[-8.2,-26],[8.2,-26],[9.2,-14]],'#d9534f');poly([[-7.6,-38],[-6.9,-48],[6.9,-48],[7.6,-38]],'#d9534f');
+    ctx.fillStyle='#ffd75e';R_(-6,-62,12,8);poly([[-9,-62],[0,-72],[9,-62]],'#d9534f');ctx.fillStyle='#8a5a3c';R_(-3,-9,6,9)},
+  windmill(s,t){shadow(20);poly([[-11,0],[-6,-42],[6,-42],[11,0]],'#efe0c0');poly([[-8,-42],[0,-54],[8,-42]],ROOFS[(s>>2)%5]);
+    ctx.fillStyle='#8a5a3c';R_(-3.5,-10,7,10);
+    ctx.save();ctx.translate(0,-42);ctx.rotate(t*0.7+s);for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);ctx.fillStyle='#6b4f3a';R_(-1.5,0,3,26);ctx.fillStyle='#fff8e8';R_(1.5,4,10,18)}ctx.restore();ctx.fillStyle='#6b4f3a';ctx.beginPath();ctx.arc(0,-42,3,0,7);ctx.fill()},
+  monument(s,t){shadow(20);ctx.fillStyle='#b9b4c4';R_(-14,-9,28,9);ctx.fillStyle='#d8d3e3';R_(-7,-52,14,44);ctx.fillStyle='#c4bed3';R_(-9,-56,18,5);
+    ctx.fillStyle='#7a6f8f';R_(-0.8,-78,1.6,24);const w=Math.sin(t*3)*2;poly([[0.8,-78],[14+w,-74],[0.8,-69]],'#e0566b')},
+  tent(s,t){shadow(26);poly([[-24,0],[0,-40],[24,0]],'#f7f2e7');poly([[-24,0],[0,-40],[-8,0]],ROOFS[s%5]);poly([[8,0],[0,-40],[24,0]],ROOFS[s%5]);
+    poly([[-6,0],[0,-16],[6,0]],'#4b3b52');ctx.fillStyle='#e0566b';R_(-0.7,-52,1.4,12);poly([[0.7,-52],[9,-49],[0.7,-46]],'#ffd24a')},
+  stall(s){shadow(22);ctx.fillStyle='#b98457';R_(-16,-14,32,14);ctx.fillStyle='#ffe9a8';R_(-12,-19,24,5);
+    for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#fff':ROOFS[s%5];R_(-18+i*6,-32,6,11)}ctx.fillStyle='#6b4f3a';R_(-17,-32,1.5,32);R_(15.5,-32,1.5,32)},
+  garden(s){ctx.fillStyle='#6c4a34';ctx.beginPath();ctx.ellipse(0,0,24,8,0,0,7);ctx.fill();ctx.fillStyle='#5aa94e';ctx.beginPath();ctx.ellipse(0,-1,21,6.5,0,0,7);ctx.fill();
+    for(let i=0;i<9;i++){const a=i*2.4,x=Math.cos(a)*(6+i*1.7)*0.9,y=-1+Math.sin(a)*(6+i)*0.28;ctx.strokeStyle='#3c8a45';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-9-(i%3)*2);ctx.stroke();ctx.fillStyle=FLOW[(i+s)%5];ctx.beginPath();ctx.arc(x,y-10-(i%3)*2,3.2,0,7);ctx.fill();ctx.fillStyle='#fff6a8';ctx.beginPath();ctx.arc(x,y-10-(i%3)*2,1,0,7);ctx.fill()}}
+};
+const BH={house:46,cottage:40,lighthouse:74,windmill:56,monument:80,tent:54,stall:34,garden:24};
+const BW={house:46,cottage:42,lighthouse:24,windmill:48,monument:30,tent:50,stall:40,garden:50};
+
+function cloud(x,y,s,a){ctx.fillStyle='rgba(255,255,255,'+a+')';[[0,0,16],[14,-5,13],[-14,-3,12],[26,2,10]].forEach(c=>{ctx.beginPath();ctx.arc(x+c[0]*s,y+c[1]*s,c[2]*s,0,7);ctx.fill()})}
+function stormCloud(x,y,t){
+  ctx.fillStyle='#6f7790';[[0,0,15],[14,-4,12],[-14,-2,11],[26,3,9]].forEach(c=>{ctx.beginPath();ctx.arc(x+c[0],y+c[1],c[2],0,7);ctx.fill()});
+  ctx.strokeStyle='rgba(170,200,255,.85)';ctx.lineWidth=1.6;
+  for(let i=0;i<7;i++){const px=x-20+i*8,ph=(t*1.8+i*.37)%1;ctx.beginPath();ctx.moveTo(px,y+10+ph*34);ctx.lineTo(px-2,y+16+ph*34);ctx.stroke()}
+}
+function rainbow(){
+  const cs=['#ff6b6b','#ffb347','#ffe66d','#7bd88f','#5dade2','#a78bfa'];
+  ctx.lineWidth=3.2;cs.forEach((c,i)=>{ctx.strokeStyle=c;ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(0,-8,50-i*3.2,Math.PI,0);ctx.stroke()});ctx.globalAlpha=1;
+}
+
+/* ---- árbol del amor ---- */
+function drawTree(t,days,months){
+  const s=0.25+0.75*(1-Math.exp(-days/700));
+  shadow(34*s+10);
+  if(days<7){ctx.fillStyle='#6c4a34';ctx.beginPath();ctx.ellipse(0,-2,13,6,0,0,7);ctx.fill();ctx.strokeStyle='#4fae55';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(0,-4);ctx.lineTo(0,-16);ctx.stroke();
+    ctx.fillStyle='#69c564';ctx.beginPath();ctx.ellipse(-5,-16,6,3.2,-.5,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(5,-18,6,3.2,.5,0,7);ctx.fill();return 40}
+  const sw=Math.sin(t*0.8)*1.6*s,dd=dispD;
+  poly([[-7*s,0],[-4*s,-52*s],[4*s,-52*s],[7*s,0]],'#8a5a3c');
+  ctx.strokeStyle='#8a5a3c';ctx.lineWidth=3.5*s;ctx.beginPath();ctx.moveTo(0,-30*s);ctx.lineTo(-15*s,-46*s);ctx.moveTo(0,-34*s);ctx.lineTo(15*s,-50*s);ctx.stroke();
+  const cc=[[0,-66,38,'leaf1'],[-26,-50,27,'leaf1'],[26,-50,27,'leaf1'],[-14,-86,25,'leaf2'],[15,-88,25,'leaf2'],[0,-52,28,'leaf2']];
+  cc.forEach(c=>{ctx.fillStyle=pc(c[3],dd);ctx.beginPath();ctx.arc(c[0]*s+sw,c[1]*s,c[2]*s,0,7);ctx.fill()});
+  ctx.fillStyle='rgba(255,255,255,.1)';ctx.beginPath();ctx.arc(-10*s+sw,-84*s,16*s,0,7);ctx.fill();
+  const n=Math.min(months,36);
+  for(let i=0;i<n;i++){
+    const a=rnd(i*3+11)*6.283,r=Math.sqrt(rnd(i*3+12)),x=Math.cos(a)*r*50*s+sw,y=-66*s+Math.sin(a)*r*40*s,gold=(i%12===11);
+    ctx.fillStyle=gold?'#ffc83d':'#e5484d';ctx.beginPath();ctx.arc(x,y,(gold?4.6:3.6)*Math.max(.7,s),0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.65)';ctx.beginPath();ctx.arc(x-1,y-1.2,1.1,0,7);ctx.fill();
+  }
+  return 118*s+16;
+}
+
+/* ---- escena ---- */
+let hits=[],glows=[];
+const pops={};
+const now=()=>performance.now()/1000;
+function easeBack(x){const c=1.70158+1;return 1+c*Math.pow(x-1,3)+1.70158*Math.pow(x-1,2)}
+
+function sceneObjects(t){
+  const list=[],days=dayCount(),months=ymd().months;
+  list.push({y:0,fn(){const h=drawTree(t,days,months);hits.push({x:-45,y:-h,w:90,h:h+6,ref:{kind:'tree'}});glows.push({k:'tree',x:0,y:-50})}});
+  state.wishes.forEach(w=>{
+    const p=slotPos(w.slot),c=WC[w.cat]||WC.suenos,s=hash(w.id);
+    list.push({y:p.y,fn(){
+      ctx.save();ctx.translate(p.x,p.y);
+      if(!w.done){
+        ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,0,22,8,0,0,7);ctx.stroke();ctx.setLineDash([]);
+        ctx.strokeStyle='#8a5a3c';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-28);ctx.stroke();
+        const wv=Math.sin(t*2.5+s)*1.5;poly([[0,-28],[13+wv,-24],[0,-19]],ROOFS[s%5]);
+        hits.push({x:p.x-22,y:p.y-34,w:44,h:40,ref:{kind:'wish',id:w.id}});
+      }else{
+        const k=pops[w.id]?clamp((now()-pops[w.id])/0.9,0,1):1,sc=k<1?Math.max(0.001,easeBack(k)):1;
+        ctx.scale(sc,sc);B[c.b](s,t);
+        glows.push({k:c.b,x:p.x,y:p.y});
+        hits.push({x:p.x-BW[c.b]/2,y:p.y-BH[c.b],w:BW[c.b],h:BH[c.b]+4,ref:{kind:'wish',id:w.id}});
+      }
+      ctx.restore();
+    }});
+  });
+  state.miles.forEach(m=>{
+    const p=slotPos(m.slot),c=MT[m.type]||MT.recuerdo,s=hash(m.id);
+    list.push({y:p.y,fn(){
+      ctx.save();ctx.translate(p.x,p.y);
+      const k=pops[m.id]?clamp((now()-pops[m.id])/0.9,0,1):1,sc=k<1?Math.max(0.001,easeBack(k)):1;
+      ctx.scale(sc,sc);
+      if(m.type==='tormenta'&&m.resolvedOn)rainbow();
+      B[c.b](s,t);
+      if(m.type==='tormenta'&&!m.resolvedOn)stormCloud(-4,-58+Math.sin(t*1.3)*2,t);
+      glows.push({k:c.b,x:p.x,y:p.y});
+      ctx.restore();
+      hits.push({x:p.x-BW[c.b]/2,y:p.y-BH[c.b]-(m.type==='tormenta'?30:0),w:BW[c.b],h:BH[c.b]+(m.type==='tormenta'?34:4),ref:{kind:'mile',id:m.id}});
+    }});
+  });
+  /* decoración del borde */
+  const R=islandR();
+  for(let i=0;i<30;i++){
+    const a=i/30*6.283+rnd(i+100)*0.18,e=edge(a),r=(0.9+rnd(i+200)*0.05)*e,x=Math.cos(a)*R*r,y=Math.sin(a)*R*r*0.6,kind=Math.floor(rnd(i+300)*4);
+    list.push({y,fn(){ctx.save();ctx.translate(x,y);
+      if(kind===0){ctx.fillStyle='rgba(0,0,0,.15)';ctx.beginPath();ctx.ellipse(0,1,9,3,0,0,7);ctx.fill();ctx.fillStyle=pc('leaf1',dispD);[[0,-6,7],[-6,-3,5],[6,-3,5]].forEach(c=>{ctx.beginPath();ctx.arc(c[0],c[1],c[2],0,7);ctx.fill()})}
+      else if(kind===1){ctx.fillStyle='rgba(0,0,0,.15)';ctx.beginPath();ctx.ellipse(0,1,8,3,0,0,7);ctx.fill();ctx.fillStyle='#8a5a3c';R_(-1.5,-12,3,12);ctx.fillStyle=pc('leaf2',dispD);ctx.beginPath();ctx.arc(0,-17,9,0,7);ctx.fill()}
+      else if(kind===2){ctx.fillStyle='#a7a3b4';ctx.beginPath();ctx.ellipse(0,-3,7,5,0,0,7);ctx.fill();ctx.fillStyle='#c2bfcf';ctx.beginPath();ctx.ellipse(-1.5,-4.5,4,2.6,0,0,7);ctx.fill()}
+      else{for(let j=0;j<4;j++){ctx.fillStyle=FLOW[(i+j)%5];ctx.beginPath();ctx.arc(-6+j*4,-2-(j%2)*3,2.3,0,7);ctx.fill()}}
+      ctx.restore()}});
+  }
+  /* barquito */
+  const ba=t*0.09,bx=Math.cos(ba)*R*1.22,by=Math.sin(ba)*R*1.22*0.6;
+  list.push({y:by+400,fn(){ctx.save();ctx.translate(bx,by);ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(0,3,20,5,0,0,7);ctx.fill();
+    poly([[-13,-4],[13,-4],[9,4],[-9,4]],'#b9533f');ctx.fillStyle='#6b4f3a';R_(-0.7,-24,1.4,20);poly([[1,-23],[12,-8],[1,-8]],'#fff8e8');ctx.restore()}});
+  return list;
+}
+
+function islandPath(sc){
+  const R=islandR();ctx.beginPath();
+  for(let i=0;i<=72;i++){const a=i/72*6.283185,e=edge(a);const x=Math.cos(a)*R*e*sc,y=Math.sin(a)*R*e*0.6*sc;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+  ctx.closePath();
+}
+
+function draw(t){
+  const tgt=dayTarget();dispD+=(tgt-dispD)*0.06;const d=dispD;
+  /* cámara animada hacia un objetivo */
+  if(cam.tgt){const k=clamp((now()-cam.tgt.t0)/cam.tgt.dur,0,1),e=k*k*(3-2*k);cam.x=cam.tgt.x0+(cam.tgt.x-cam.tgt.x0)*e;cam.y=cam.tgt.y0+(cam.tgt.y-cam.tgt.y0)*e;cam.z=cam.tgt.z0+(cam.tgt.z-cam.tgt.z0)*e;if(k>=1)cam.tgt=null}
+  hits=[];glows=[];
+  ctx.setTransform(1,0,0,1,0,0);
+  const g=ctx.createLinearGradient(0,0,0,cv.height);g.addColorStop(0,pc('wA',d));g.addColorStop(1,pc('wB',d));ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
+  const z=cam.z;ctx.setTransform(dpr*z,0,0,dpr*z,dpr*(W/2-cam.x*z),dpr*(H/2-cam.y*z));
+  const R=islandR();
+  /* olas */
+  ctx.lineWidth=2;
+  for(let k=0;k<4;k++){ctx.strokeStyle='rgba(255,255,255,'+(0.2-k*0.04)+')';ctx.setLineDash([34,46]);ctx.lineDashOffset=(k%2?1:-1)*t*9;
+    ctx.beginPath();ctx.ellipse(0,0,R*(1.12+k*0.14+0.015*Math.sin(t*.8+k)),R*0.6*(1.12+k*0.14+0.015*Math.sin(t*.8+k)),0,0,7);ctx.stroke()}
+  ctx.setLineDash([]);
+  /* isla */
+  ctx.save();ctx.translate(0,10);islandPath(1.1);ctx.fillStyle='rgba(0,0,0,.14)';ctx.fill();ctx.restore();
+  islandPath(1.08);ctx.fillStyle=pc('sand',d);ctx.fill();
+  islandPath(1);ctx.fillStyle=pc('g2',d);ctx.fill();
+  ctx.save();islandPath(1);ctx.clip();islandPath(0.86);ctx.fillStyle=pc('g1',d);ctx.fill();
+  for(let i=0;i<46;i++){const a=rnd(i+500)*6.283,r=Math.sqrt(rnd(i+600))*0.9,x=Math.cos(a)*R*r,y=Math.sin(a)*R*r*0.6;ctx.strokeStyle='rgba(30,90,40,.28)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x-4,y-4);ctx.moveTo(x,y);ctx.lineTo(x,y-5);ctx.moveTo(x+3,y);ctx.lineTo(x+4,y-4);ctx.stroke()}
+  ctx.restore();
+  /* objetos ordenados por profundidad */
+  const objs=sceneObjects(t);objs.sort((a,b)=>a.y-b.y);objs.forEach(o=>o.fn());
+  /* nubes de paso (solo de día) */
+  const ca=0.28*d+0.05;
+  for(let i=0;i<3;i++){const span=R*5,x=((t*7+i*span/3+rnd(i)*200)%span)-span/2,y=-R*0.55+i*R*0.5;cloud(x,y,1.4+i*.3,ca)}
+  /* oscuridad nocturna */
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle='rgba(12,18,62,'+(0.42*(1-d)).toFixed(3)+')';ctx.fillRect(0,0,cv.width,cv.height);
+  const gh=Math.max(0,1-Math.abs(d-0.5)*2.6);if(gh>0.01){ctx.fillStyle='rgba(255,140,60,'+(gh*0.13).toFixed(3)+')';ctx.fillRect(0,0,cv.width,cv.height)}
+  /* luces (emisión) */
+  const night=1-d;
+  if(night>0.03){
+    ctx.setTransform(dpr*z,0,0,dpr*z,dpr*(W/2-cam.x*z),dpr*(H/2-cam.y*z));
+    ctx.globalCompositeOperation='lighter';
+    const lamp=(x,y,r,c,a)=>{const gr=ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba('+c+','+(a*night).toFixed(3)+')');gr.addColorStop(1,'rgba('+c+',0)');ctx.fillStyle=gr;ctx.fillRect(x-r,y-r,r*2,r*2)};
+    glows.forEach(l=>{
+      if(l.k==='house'||l.k==='cottage'){lamp(l.x+9,l.y-14,24,'255,205,110',.75);lamp(l.x-10,l.y-14,18,'255,205,110',.5)}
+      else if(l.k==='tent'){for(let i=0;i<5;i++)lamp(l.x-16+i*8,l.y-18+Math.abs(i-2)*-1.5+6,10,'255,230,150',.8)}
+      else if(l.k==='stall'){lamp(l.x,l.y-16,26,'255,200,120',.8)}
+      else if(l.k==='monument'){lamp(l.x,l.y-80,22,'255,230,150',.7)}
+      else if(l.k==='windmill'){lamp(l.x,l.y-8,18,'255,205,110',.6)}
+      else if(l.k==='lighthouse'){
+        lamp(l.x,l.y-58,30,'255,240,170',1);
+        ctx.save();ctx.translate(l.x,l.y-58);ctx.rotate(t*0.9);
+        const gr=ctx.createLinearGradient(0,0,240,0);gr.addColorStop(0,'rgba(255,240,170,'+(.55*night).toFixed(3)+')');gr.addColorStop(1,'rgba(255,240,170,0)');
+        ctx.fillStyle=gr;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(240,-34);ctx.lineTo(240,34);ctx.closePath();ctx.fill();
+        ctx.rotate(Math.PI);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(240,-34);ctx.lineTo(240,34);ctx.closePath();ctx.fill();ctx.restore();
+      }
+      else if(l.k==='tree'){for(let i=0;i<14;i++){const a=t*0.4+i*1.9,x=l.x+Math.cos(a+i)*(50+i*4),y=l.y+Math.sin(a*1.3+i)*(26+i*2)+10,tw=0.5+0.5*Math.sin(t*3+i*2);lamp(x,y,7,'220,255,140',.9*tw)}}
+    });
+    /* destellos en el agua */
+    for(let i=0;i<22;i++){const a=rnd(i+700)*6.283,r=R*(1.2+rnd(i+800)*0.9),x=Math.cos(a)*r,y=Math.sin(a)*r*0.6,tw=0.5+0.5*Math.sin(t*2+i*3);lamp(x,y,6,'255,255,255',.55*tw)}
+    ctx.globalCompositeOperation='source-over';
+  }
+}
+let last=0;
+function frame(ts){requestAnimationFrame(frame);if(document.hidden||ts-last<30)return;last=ts;draw(ts/1000)}
+
+/* ============ interacción en el mapa ============ */
+const ptrs=new Map();let tapStart=null,pinch0=0,z0=1;
+const pdist=()=>{const p=[...ptrs.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)||1};
+function limitCam(){const R=islandR()*1.3;cam.x=clamp(cam.x,-R,R);cam.y=clamp(cam.y,-R*0.8,R*0.8)}
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});cam.tgt=null;tapStart={x:e.clientX,y:e.clientY,moved:false};if(ptrs.size===2){pinch0=pdist();z0=cam.z;tapStart.moved=true}});
+cv.addEventListener('pointermove',e=>{
+  const p=ptrs.get(e.pointerId);if(!p)return;
+  const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===1&&tapStart){
+    if(!tapStart.moved&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8)tapStart.moved=true;
+    if(tapStart.moved){cam.x-=dx/cam.z;cam.y-=dy/cam.z;cam.moved=true;limitCam()}
+  }else if(ptrs.size===2){setZoom(z0*pdist()/pinch0)}
+});
+const endPtr=e=>{
+  if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);
+  if(ptrs.size===0){if(tapStart&&!tapStart.moved&&e.type==='pointerup')tap(e.clientX,e.clientY);tapStart=null}
+  else if(ptrs.size===1&&tapStart)tapStart.moved=true;
+};
+cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('wheel',e=>{e.preventDefault();setZoom(cam.z*Math.exp(-e.deltaY*0.0015))},{passive:false});
+function tap(sx,sy){
+  const wx=(sx-W/2)/cam.z+cam.x,wy=(sy-H/2)/cam.z+cam.y;
+  for(let i=hits.length-1;i>=0;i--){const h=hits[i];if(wx>=h.x&&wx<=h.x+h.w&&wy>=h.y&&wy<=h.y+h.h){
+    const r=h.ref;if(r.kind==='tree')viewTree();else viewDetail(r.kind,r.id);return}}
+}
+function focusOn(x,y,zoom){cam.moved=true;cam.tgt={x0:cam.x,y0:cam.y,z0:cam.z,x,y:y-24,z:clamp(zoom||cam.fit*1.8,cam.fit*0.55,cam.fit*4),t0:now(),dur:1.1}}
+
+/* ============ hojas (diálogo) ============ */
+const dlg=$('#sheet'),sbody=$('#sbody');
+let urls=[];
+function openSheet(html,mount){
+  sbody.innerHTML=html;sbody.parentElement.scrollTop=0;
+  if(!dlg.open)dlg.showModal();
+  if(mount)mount(sbody);
+}
+function closeSheet(){if(dlg.open)dlg.close()}
+dlg.addEventListener('click',e=>{if(e.target===dlg&&state.ready)closeSheet()});
+dlg.addEventListener('cancel',e=>{if(!state.ready)e.preventDefault()});
+dlg.addEventListener('close',()=>{urls.forEach(u=>URL.revokeObjectURL(u));urls=[]});
+
+async function showPhoto(id,img){
+  if(!id)return;await dbReady;
+  try{const b=await idb.get('f-'+id);if(b){const u=URL.createObjectURL(b);urls.push(u);img.src=u;img.hidden=false}}catch(e){}
+}
+async function savePhoto(id,file){
+  await dbReady;const blob=await compress(file);await idb.put('f-'+id,blob);
+}
+
+/* ---- primera vez ---- */
+function viewSetup(){
+  openSheet(`
+    <h2>Bienvenidos a su mundo 🌍</h2>
+    <p class="sub">Una isla que crece con su historia. Cuéntame lo básico para sembrar su árbol.</p>
+    <form id="f">
+      <label class="f">Tu nombre</label><input type="text" name="a" required maxlength="24" autocomplete="off">
+      <label class="f">Su nombre</label><input type="text" name="b" required maxlength="24" autocomplete="off">
+      <label class="f">¿Desde qué día están juntos?</label><input type="date" name="s" required max="${todayISO()}">
+      <button class="btn" type="submit">Sembrar nuestro árbol 🌱</button>
+    </form>
+    <div class="note">Todo se guarda solo en este teléfono. Nada se sube a internet.</div>`,
+  b=>{$('#f',b).addEventListener('submit',e=>{e.preventDefault();const f=e.target;
+    state.names={a:f.a.value.trim(),b:f.b.value.trim()};state.since=f.s.value;state.ready=true;commit();closeSheet();refreshHud();toast('🌱 ¡Su árbol ya está sembrado!')})});
+}
+
+/* ---- árbol ---- */
+function viewTree(){
+  const d=dayCount(),v=ymd(),a=nextAnniv(),fruits=Math.min(v.months,36);
+  openSheet(`
+    <div class="big">🌳</div>
+    <h2>${esc(state.names.a)} &amp; ${esc(state.names.b)}</h2>
+    <p class="sub">Juntos desde el ${esc(fmtDate(state.since))}. Su árbol es ahora un <b>${stageName(d).toLowerCase()}</b>.</p>
+    <div class="stat">
+      <div><b>${d.toLocaleString('es')}</b><small>días juntos</small></div>
+      <div><b>${fruits}</b><small>frutos (uno por mes)</small></div>
+    </div>
+    <div class="stat" style="grid-template-columns:1fr">
+      <div><b style="font-size:17px">${esc(ymdText())}</b><small>de historia</small></div>
+      <div><b style="font-size:17px">${a.days===0?'¡Hoy es su aniversario! 🎉':'Faltan '+plural(a.days,'día','días')}</b><small>para cumplir ${plural(a.years,'año','años')}</small></div>
+    </div>
+    <div class="note">Cada mes que pasa le sale un fruto rojo, y cada año uno dorado.</div>`);
+}
+
+/* ---- lista de cosas por hacer ---- */
+let wTab='pend',ideasOpen=false;
+function viewWishes(){
+  const pend=state.wishes.filter(w=>!w.done),done=state.wishes.filter(w=>w.done).sort((x,y)=>(y.doneT||0)-(x.doneT||0));
+  const have=new Set(state.wishes.map(w=>w.text.toLowerCase()));
+  const list=wTab==='pend'?pend:done;
+  openSheet(`
+    <h2>Lo que queremos vivir juntos</h2>
+    <p class="sub">Cada plan pendiente es un terreno con bandera. Al cumplirlo, se construye algo en la isla.</p>
+    <form id="wf"><div class="row"><input type="text" name="t" placeholder="Escribe un plan…" required maxlength="90" autocomplete="off"><select name="c" style="max-width:128px">${Object.entries(WC).map(([k,v])=>`<option value="${k}">${v.e} ${v.n}</option>`).join('')}</select></div>
+    <button class="btn" type="submit" style="margin-top:10px">Agregar a la lista</button></form>
+    <details id="ideas" ${ideasOpen?'open':''}><summary>💡 Ideas para empezar</summary>
+      ${Object.entries(IDEAS).map(([k,arr])=>{const rest=arr.filter(x=>!have.has(x.toLowerCase()));return rest.length?`<h4>${WC[k].e} ${WC[k].n}</h4><div class="chips">${rest.map(x=>`<button type="button" class="chip" data-c="${k}" data-t="${esc(x)}">+ ${esc(x)}</button>`).join('')}</div>`:''}).join('')||'<p class="sub" style="margin-top:10px">¡Ya agregaron todas mis ideas!</p>'}
+    </details>
+    <div class="tabs"><button data-tab="pend" class="${wTab==='pend'?'on':''}">Pendientes (${pend.length})</button><button data-tab="done" class="${wTab==='done'?'on':''}">Cumplidos (${done.length})</button></div>
+    ${list.length?`<ul class="list">${list.map(w=>`<li class="${w.done?'done':''}"><button class="chk ${w.done?'on':''}" data-chk="${w.id}" aria-label="${w.done?'Desmarcar':'Marcar como cumplido'}">${w.done?'✓':''}</button><div class="wt" data-open="${w.id}"><b>${esc(w.text)}</b><small>${WC[w.cat].e} ${WC[w.cat].n}${w.done?' · '+esc(fmtDate(w.doneDate)):''}</small></div></li>`).join('')}</ul>`
+      :`<div class="empty">${wTab==='pend'?'No hay planes pendientes.<br>Escribe uno arriba o toca una idea 💡':'Todavía no han cumplido ninguno.<br>¡El primero va a ser especial!'}</div>`}`,
+  b=>{
+    $('#ideas',b).addEventListener('toggle',e=>{ideasOpen=e.target.open});
+    $('#wf',b).addEventListener('submit',e=>{e.preventDefault();const f=e.target;addWish(f.t.value.trim(),f.c.value);viewWishes()});
+    b.querySelectorAll('.chip').forEach(x=>x.addEventListener('click',()=>{addWish(x.dataset.t,x.dataset.c);viewWishes()}));
+    b.querySelectorAll('[data-tab]').forEach(x=>x.addEventListener('click',()=>{wTab=x.dataset.tab;viewWishes()}));
+    b.querySelectorAll('[data-open]').forEach(x=>x.addEventListener('click',()=>viewDetail('wish',x.dataset.open)));
+    b.querySelectorAll('[data-chk]').forEach(x=>x.addEventListener('click',()=>toggleWish(x.dataset.chk)));
+  });
+}
+function addWish(text,cat){if(!text)return;state.wishes.push({id:uid(),text,cat,slot:state.nextSlot++,done:false,doneDate:'',doneT:0,note:'',photo:false});commit();fit()}
+function toggleWish(id){
+  const w=state.wishes.find(x=>x.id===id);if(!w)return;
+  if(!w.done){
+    w.done=true;w.doneDate=todayISO();w.doneT=Date.now();commit();pops[w.id]=now()+0.9;
+    closeSheet();const p=slotPos(w.slot);setTimeout(()=>{pops[w.id]=now();focusOn(p.x,p.y)},180);
+    toast('🏗️ ¡Se construyó algo nuevo en la isla!');
+  }else{w.done=false;commit();viewWishes()}
+}
+
+/* ---- nuevo hito ---- */
+function viewAddMilestone(){
+  openSheet(`
+    <h2>Un nuevo hito ✨</h2>
+    <p class="sub">Lo que pasó, queda en la isla para siempre.</p>
+    <form id="mf">
+      <label class="f">¿Qué fue?</label>
+      <div class="types">${Object.entries(MT).map(([k,v],i)=>`<label><input type="radio" name="tp" value="${k}" ${i===0?'checked':''}><span>${v.e}</span>${v.n}</label>`).join('')}</div>
+      <label class="f">Título</label><input type="text" name="t" required maxlength="70" placeholder="Ej: Nuestro primer viaje" autocomplete="off">
+      <label class="f">Fecha</label><input type="date" name="d" value="${todayISO()}" max="${todayISO()}" required>
+      <label class="f">Nota (opcional)</label><textarea name="n" maxlength="600" placeholder="Qué pasó, qué sentiste…"></textarea>
+      <label class="f">Foto (opcional)</label><input type="file" name="p" accept="image/*">
+      <button class="btn" type="submit">Construir en la isla 🏗️</button>
+    </form>
+    <div class="note">Una <b>tormenta</b> deja una nube sobre su cabaña hasta que hagan las paces. Entonces sale un arcoíris 🌈</div>`,
+  b=>{$('#mf',b).addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target,btn=$('button[type=submit]',f);btn.disabled=true;
+    const m={id:uid(),type:f.tp.value,title:f.t.value.trim(),date:f.d.value,note:f.n.value.trim(),slot:state.nextSlot++,photo:false,resolvedOn:''};
+    const file=f.p.files[0];
+    if(file){try{await savePhoto(m.id,file);m.photo=true}catch(err){toast('No pude guardar la foto')}}
+    state.miles.push(m);commit();fit();pops[m.id]=now()+0.9;closeSheet();
+    const p=slotPos(m.slot);setTimeout(()=>{pops[m.id]=now();focusOn(p.x,p.y)},180);toast('🏗️ ¡Hito construido!');
+  })});
+}
+
+/* ---- detalle (deseo o hito) ---- */
+function viewDetail(kind,id){
+  const isW=kind==='wish',o=(isW?state.wishes:state.miles).find(x=>x.id===id);if(!o)return;
+  const c=isW?WC[o.cat]:MT[o.type],date=isW?o.doneDate:o.date,storm=!isW&&o.type==='tormenta';
+  openSheet(`
+    <div class="big">${c.e}</div>
+    <h2>${esc(isW?o.text:o.title)}</h2>
+    <div class="meta">${isW?(o.done?'Cumplido el '+esc(fmtDate(date)):'Pendiente · terreno reservado 🚩'):esc(c.n)+' · '+esc(fmtDate(date))}</div>
+    ${storm?(o.resolvedOn?`<div class="note" style="margin:0 0 6px">🌈 Hicieron las paces el ${esc(fmtDate(o.resolvedOn))}</div>`:`<button class="btn ok" id="peace" style="margin-top:4px">Hicimos las paces 🌈</button>`):''}
+    <img class="photo" id="ph" alt="Foto del recuerdo" hidden>
+    <form id="df">
+      ${(isW&&!o.done)?'':`<label class="f">Fecha</label><input type="date" name="d" value="${esc(date)}" max="${todayISO()}" required>`}
+      ${isW?'':`<label class="f">Título</label><input type="text" name="t" value="${esc(o.title)}" required maxlength="70">`}
+      <label class="f">Nota</label><textarea name="n" maxlength="600" placeholder="Escribe algo para recordar…">${esc(o.note||'')}</textarea>
+      ${(isW&&!o.done)?'':`<label class="f">${o.photo?'Cambiar foto':'Agregar foto'}</label><input type="file" name="p" accept="image/*">`}
+      <button class="btn" type="submit">Guardar</button>
+    </form>
+    <div class="row" style="margin-top:10px">
+      ${isW&&o.done?'<button class="btn alt" id="undo" style="margin-top:0">Desmarcar</button>':''}
+      ${isW&&!o.done?'<button class="btn ok" id="complete" style="margin-top:0">¡Lo cumplimos! 🎉</button>':''}
+      <button class="btn danger" id="del" style="margin-top:0">Eliminar</button>
+    </div>`,
+  b=>{
+    showPhoto(o.photo?o.id:null,$('#ph',b));
+    $('#df',b).addEventListener('submit',async e=>{
+      e.preventDefault();const f=e.target;
+      if(f.d)(isW?o.doneDate=f.d.value:o.date=f.d.value);
+      if(f.t&&!isW)o.title=f.t.value.trim();
+      o.note=f.n.value.trim();
+      const file=f.p&&f.p.files[0];
+      if(file){try{await savePhoto(o.id,file);o.photo=true}catch(err){toast('No pude guardar la foto')}}
+      commit();toast('Guardado ✓');viewDetail(kind,id);
+    });
+    const peace=$('#peace',b);if(peace)peace.addEventListener('click',()=>{o.resolvedOn=todayISO();commit();closeSheet();const p=slotPos(o.slot);focusOn(p.x,p.y);toast('🌈 ¡Salió el arcoíris!')});
+    const comp=$('#complete',b);if(comp)comp.addEventListener('click',()=>toggleWish(id));
+    const undo=$('#undo',b);if(undo)undo.addEventListener('click',()=>{o.done=false;commit();closeSheet();toast('Vuelve a ser un plan pendiente')});
+    $('#del',b).addEventListener('click',async()=>{
+      if(!confirm('¿Eliminar esto de la isla? No se puede deshacer.'))return;
+      if(isW)state.wishes=state.wishes.filter(x=>x.id!==id);else state.miles=state.miles.filter(x=>x.id!==id);
+      try{await dbReady;await idb.del('f-'+id)}catch(e){}
+      commit();closeSheet();toast('Eliminado');
+    });
+  });
+}
+
+/* ---- ajustes ---- */
+function viewSettings(){
+  const tm=state.settings.time;
+  openSheet(`
+    <h2>Ajustes ⚙️</h2>
+    <form id="sf">
+      <label class="f">Tu nombre</label><input type="text" name="a" value="${esc(state.names.a)}" required maxlength="24">
+      <label class="f">Su nombre</label><input type="text" name="b" value="${esc(state.names.b)}" required maxlength="24">
+      <label class="f">Juntos desde</label><input type="date" name="s" value="${esc(state.since)}" required>
+      <label class="f">Hora del mundo</label>
+      <div class="seg"><label><input type="radio" name="tm" value="auto" ${tm==='auto'?'checked':''}>🕐 Real</label><label><input type="radio" name="tm" value="day" ${tm==='day'?'checked':''}>☀️ Día</label><label><input type="radio" name="tm" value="night" ${tm==='night'?'checked':''}>🌙 Noche</label></div>
+      <button class="btn" type="submit">Guardar ajustes</button>
+    </form>
+    <h2 style="margin-top:26px;font-size:18px">Respaldo 💾</h2>
+    <p class="sub">Tu mundo vive solo en este teléfono. Si lo pierdes o lo formateas, se va con él. Guarda un respaldo de vez en cuando y envíatelo a donde quieras.</p>
+    <div class="row"><button class="btn alt" id="exp" style="margin-top:0">Guardar respaldo</button><button class="btn alt" id="imp" style="margin-top:0">Restaurar</button></div>
+    <input type="file" id="impf" accept="application/json,.json" hidden>
+    <div class="note">Privacidad: nada de lo que escribes o subes aquí sale de tu teléfono.</div>`,
+  b=>{
+    $('#sf',b).addEventListener('submit',e=>{e.preventDefault();const f=e.target;state.names={a:f.a.value.trim(),b:f.b.value.trim()};state.since=f.s.value;state.settings.time=f.tm.value;commit();refreshHud();closeSheet();toast('Ajustes guardados')});
+    $('#exp',b).addEventListener('click',exportBackup);
+    $('#imp',b).addEventListener('click',()=>$('#impf',b).click());
+    $('#impf',b).addEventListener('change',e=>importBackup(e.target.files[0]));
+  });
+}
+const blobToDataURL=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+async function exportBackup(){
+  try{
+    await dbReady;const photos={};
+    for(const k of await idb.keys()){const b=await idb.get(k);if(b)photos[k]=await blobToDataURL(b)}
+    const data=new Blob([JSON.stringify({app:'nuestro-mundo',state,photos})],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(data);a.download='nuestro-mundo-respaldo-'+todayISO()+'.json';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('💾 Respaldo guardado');
+  }catch(e){toast('No pude crear el respaldo')}
+}
+async function importBackup(file){
+  if(!file)return;
+  try{
+    const j=JSON.parse(await file.text());
+    if(j.app!=='nuestro-mundo'||!j.state||j.state.v!==1)throw new Error('formato');
+    if(!confirm('Esto reemplaza lo que hay ahora en tu mundo por el respaldo. ¿Continuar?'))return;
+    await dbReady;
+    for(const k of await idb.keys())await idb.del(k);
+    for(const [k,v] of Object.entries(j.photos||{}))await idb.put(k,await (await fetch(v)).blob());
+    state=Object.assign(blank(),j.state);commit();fit();closeSheet();refreshHud();toast('✅ Mundo restaurado');
+  }catch(e){toast('Ese archivo no es un respaldo válido')}
+}
+
+/* ============ HUD ============ */
+function refreshHud(){
+  $('#daysN').textContent=state.ready?dayCount().toLocaleString('es'):'—';
+  $('#daysT').textContent=state.ready&&state.names.a?state.names.a+' & '+state.names.b:'días juntos';
+  $('#clock').textContent=state.settings.time==='day'?'☀️':state.settings.time==='night'?'🌙':'🌗';
+}
+$('#days').addEventListener('click',()=>state.ready&&viewTree());
+$('#clock').addEventListener('click',()=>{const o=['auto','day','night'],i=(o.indexOf(state.settings.time)+1)%3;state.settings.time=o[i];commit();refreshHud();toast(['🕐 Hora real','☀️ Siempre de día','🌙 Siempre de noche'][i])});
+$('#bList').addEventListener('click',()=>state.ready&&viewWishes());
+$('#bAdd').addEventListener('click',()=>state.ready&&viewAddMilestone());
+$('#bSet').addEventListener('click',()=>state.ready&&viewSettings());
+
+/* ============ arranque ============ */
+resize();refreshHud();requestAnimationFrame(frame);
+setInterval(refreshHud,60000);
+if(!state.ready)viewSetup();
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+</script>
+</body>
+</html>
