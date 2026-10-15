@@ -148,7 +148,7 @@ const IDEAS={
 
 /* ============ estado ============ */
 const KEY='nuestro-mundo.v1';
-function blank(){return{v:1,ready:false,names:{a:'',b:''},since:todayISO(),nextSlot:0,wishes:[],miles:[],settings:{time:'auto'}}}
+function blank(){return{v:1,ready:false,names:{a:'',b:''},since:todayISO(),nextSlot:0,wishes:[],miles:[],settings:{time:'auto',layout:'anios'}}}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.v===1){const b=blank();return Object.assign(b,s,{settings:Object.assign(b.settings,s.settings||{})})}}catch(e){}return null}
 let state=load()||blank();
 function commit(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('No pude guardar. Revisa el espacio del teléfono.')}}
@@ -205,8 +205,28 @@ function ymdText(){
 function stageName(d){return d<7?'Semilla':d<30?'Brote':d<180?'Arbolito':d<365?'Árbol joven':d<1095?'Árbol':d<1825?'Árbol grande':'Árbol gigante'}
 
 /* ============ geometría de la isla ============ */
-const slotPos=i=>{const a=i*2.39996323+0.6,j=(rnd(i*7+1)-.5)*8,r=80+30*Math.sqrt(i)+j;return{x:Math.cos(a)*r,y:Math.sin(a)*r*0.6}};
-const islandR=()=>80+30*Math.sqrt(Math.max(state.nextSlot,5))+75;
+/* SP = separación entre construcciones (antes 30: se veía saturado). La isla crece más rápido y deja más aire. */
+const SP=48,R0=84;
+const slotPos=i=>{const a=i*2.39996323+0.6,j=(rnd(i*7+1)-.5)*10,r=R0+SP*Math.sqrt(i)+j;return{x:Math.cos(a)*r,y:Math.sin(a)*r*0.6}};
+/* Organización: 'anios' = de adentro hacia afuera, por año (lo más viejo cerca del árbol); 'llegada' = en el orden en que se agregaron */
+const PEND=100000;
+const yearOfItem=o=>o.text!==undefined?(o.done?(+String(o.doneDate||'').slice(0,4)||PEND-1):PEND):(+String(o.date||'').slice(0,4)||PEND-1);
+function layoutRanks(){
+  const items=[];
+  state.wishes.forEach(w=>items.push({o:w,y:yearOfItem(w),d:w.done?(w.doneDate||''):'',s:w.slot}));
+  state.miles.forEach(m=>items.push({o:m,y:yearOfItem(m),d:m.date||'',s:m.slot}));
+  items.sort((a,b)=>a.y-b.y||(a.d<b.d?-1:a.d>b.d?1:0)||a.s-b.s);
+  const rank=new Map(),groups=[];
+  items.forEach((it,i)=>{rank.set(it.o.id,i);const g=groups[groups.length-1];if(g&&g.y===it.y)g.count++;else groups.push({y:it.y,start:i,count:1})});
+  return {rank,groups,n:items.length};
+}
+const byYear=()=>state.settings.layout!=='llegada';
+function posOf(o){
+  if(!byYear())return slotPos(o.slot);
+  const L=layoutRanks();return slotPos(L.rank.has(o.id)?L.rank.get(o.id):o.slot);
+}
+const itemCount=()=>byYear()?state.wishes.length+state.miles.length:state.nextSlot;
+const islandR=()=>R0+SP*Math.sqrt(Math.max(itemCount(),4))+85;
 const edge=a=>1+0.05*Math.sin(3*a+1)+0.035*Math.sin(5*a+2)+0.02*Math.sin(9*a);
 
 /* ============ canvas ============ */
@@ -220,9 +240,10 @@ function resize(){
 function fit(){
   const R=islandR();
   cam.fit=Math.min(W/(2*R*1.25),(H-190)/(2*R*0.6*1.35+130));
-  if(!cam.moved){cam.z=cam.fit;cam.x=0;cam.y=-24}
+  /* Al abrir se ve el centro con las construcciones a buen tamaño; para ver toda la isla, se aleja con dos dedos. */
+  if(!cam.moved){cam.z=Math.max(cam.fit,0.42);cam.x=0;cam.y=-24}
 }
-function setZoom(z){cam.z=clamp(z,cam.fit*0.55,cam.fit*4);cam.moved=true}
+function setZoom(z){cam.z=clamp(z,cam.fit*0.7,Math.max(cam.fit*4,1.6));cam.moved=true}
 addEventListener('resize',resize);
 
 /* colores día/noche */
@@ -249,22 +270,26 @@ const R_=(x,y,w,h)=>ctx.fillRect(x,y,w,h);
 function poly(pts,fill){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
 function shadow(w){ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(0,2,w,w*.33,0,0,7);ctx.fill()}
 const B={
-  house(s){shadow(26);ctx.fillStyle=WALLS[s%5];R_(-16,-22,32,22);poly([[-22,-22],[0,-44],[22,-22]],ROOFS[(s>>3)%5]);ctx.fillStyle='#8a5a3c';R_(-4,-13,8,13);ctx.fillStyle='#ffe9a8';R_(7,-18,7,7);R_(-14,-18,7,7)},
-  cottage(s){shadow(24);ctx.fillStyle='#c99a6b';R_(-14,-18,28,18);ctx.fillStyle='#6b4f3a';R_(7,-36,6,12);poly([[-20,-18],[0,-38],[20,-18]],'#6b4f3a');ctx.fillStyle='#8a5a3c';R_(-4,-11,8,11);ctx.fillStyle='#ffe9a8';R_(6,-14,6,6)},
-  lighthouse(){shadow(18);poly([[-10,0],[-6.5,-54],[6.5,-54],[10,0]],'#fbfbf6');
+  house(s,t){shadow(26);ctx.fillStyle=WALLS[s%5];R_(-16,-22,32,22);poly([[-22,-22],[0,-44],[22,-22]],ROOFS[(s>>3)%5]);ctx.fillStyle='#8a5a3c';R_(-4,-13,8,13);ctx.fillStyle='#ffe9a8';R_(7,-18,7,7);R_(-14,-18,7,7);
+    ctx.fillStyle='#8a5a3c';R_(9,-44,5,10);
+    if(t!==undefined){/* humo de la chimenea */for(let i=0;i<4;i++){const ph=(t*0.4+i/4+(s%5)/5)%1;ctx.fillStyle='rgba(255,255,255,'+((1-ph)*0.5).toFixed(2)+')';ctx.beginPath();ctx.arc(11.5+Math.sin(t*1.1+i*2)*3+ph*8,-47-ph*28,2+ph*5,0,7);ctx.fill()}}},
+  cottage(s,t){shadow(24);ctx.fillStyle='#c99a6b';R_(-14,-18,28,18);ctx.fillStyle='#6b4f3a';R_(7,-36,6,12);poly([[-20,-18],[0,-38],[20,-18]],'#6b4f3a');ctx.fillStyle='#8a5a3c';R_(-4,-11,8,11);ctx.fillStyle='#ffe9a8';R_(6,-14,6,6);
+    if(t!==undefined){/* humo de la chimenea */for(let i=0;i<4;i++){const ph=(t*0.45+i/4+(s%7)/7)%1;ctx.fillStyle='rgba(255,255,255,'+((1-ph)*0.55).toFixed(2)+')';ctx.beginPath();ctx.arc(10+Math.sin(t*1.3+i*2)*3+ph*9,-39-ph*30,2+ph*5,0,7);ctx.fill()}}},
+  lighthouse(s,t){shadow(18);poly([[-10,0],[-6.5,-54],[6.5,-54],[10,0]],'#fbfbf6');
     poly([[-9.2,-14],[-8.2,-26],[8.2,-26],[9.2,-14]],'#d9534f');poly([[-7.6,-38],[-6.9,-48],[6.9,-48],[7.6,-38]],'#d9534f');
-    ctx.fillStyle='#ffd75e';R_(-6,-62,12,8);poly([[-9,-62],[0,-72],[9,-62]],'#d9534f');ctx.fillStyle='#8a5a3c';R_(-3,-9,6,9)},
+    ctx.fillStyle='#ffd75e';R_(-6,-62,12,8);poly([[-9,-62],[0,-72],[9,-62]],'#d9534f');ctx.fillStyle='#8a5a3c';R_(-3,-9,6,9);
+    if(t!==undefined){/* destello de la linterna, también de día */ctx.fillStyle='rgba(255,255,255,'+(0.28+0.28*Math.sin(t*2.4)).toFixed(2)+')';ctx.beginPath();ctx.arc(0,-58,7,0,7);ctx.fill()}},
   windmill(s,t){shadow(20);poly([[-11,0],[-6,-42],[6,-42],[11,0]],'#efe0c0');poly([[-8,-42],[0,-54],[8,-42]],ROOFS[(s>>2)%5]);
     ctx.fillStyle='#8a5a3c';R_(-3.5,-10,7,10);
-    ctx.save();ctx.translate(0,-42);ctx.rotate(t*0.7+s);for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);ctx.fillStyle='#6b4f3a';R_(-1.5,0,3,26);ctx.fillStyle='#fff8e8';R_(1.5,4,10,18)}ctx.restore();ctx.fillStyle='#6b4f3a';ctx.beginPath();ctx.arc(0,-42,3,0,7);ctx.fill()},
+    ctx.save();ctx.translate(0,-42);ctx.rotate(t*2.1+0.35*Math.sin(t*0.6+s)+s);for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);ctx.fillStyle='#6b4f3a';R_(-1.5,0,3,26);ctx.fillStyle='#fff8e8';R_(1.5,4,10,18)}ctx.restore();ctx.fillStyle='#6b4f3a';ctx.beginPath();ctx.arc(0,-42,3,0,7);ctx.fill()},
   monument(s,t){shadow(20);ctx.fillStyle='#b9b4c4';R_(-14,-9,28,9);ctx.fillStyle='#d8d3e3';R_(-7,-52,14,44);ctx.fillStyle='#c4bed3';R_(-9,-56,18,5);
     ctx.fillStyle='#7a6f8f';R_(-0.8,-78,1.6,24);const w=Math.sin(t*3)*2;poly([[0.8,-78],[14+w,-74],[0.8,-69]],'#e0566b')},
   tent(s,t){shadow(26);poly([[-24,0],[0,-40],[24,0]],'#f7f2e7');poly([[-24,0],[0,-40],[-8,0]],ROOFS[s%5]);poly([[8,0],[0,-40],[24,0]],ROOFS[s%5]);
-    poly([[-6,0],[0,-16],[6,0]],'#4b3b52');ctx.fillStyle='#e0566b';R_(-0.7,-52,1.4,12);poly([[0.7,-52],[9,-49],[0.7,-46]],'#ffd24a')},
-  stall(s){shadow(22);ctx.fillStyle='#b98457';R_(-16,-14,32,14);ctx.fillStyle='#ffe9a8';R_(-12,-19,24,5);
-    for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#fff':ROOFS[s%5];R_(-18+i*6,-32,6,11)}ctx.fillStyle='#6b4f3a';R_(-17,-32,1.5,32);R_(15.5,-32,1.5,32)},
-  garden(s){ctx.fillStyle='#6c4a34';ctx.beginPath();ctx.ellipse(0,0,24,8,0,0,7);ctx.fill();ctx.fillStyle='#5aa94e';ctx.beginPath();ctx.ellipse(0,-1,21,6.5,0,0,7);ctx.fill();
-    for(let i=0;i<9;i++){const a=i*2.4,x=Math.cos(a)*(6+i*1.7)*0.9,y=-1+Math.sin(a)*(6+i)*0.28;ctx.strokeStyle='#3c8a45';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-9-(i%3)*2);ctx.stroke();ctx.fillStyle=FLOW[(i+s)%5];ctx.beginPath();ctx.arc(x,y-10-(i%3)*2,3.2,0,7);ctx.fill();ctx.fillStyle='#fff6a8';ctx.beginPath();ctx.arc(x,y-10-(i%3)*2,1,0,7);ctx.fill()}}
+    poly([[-6,0],[0,-16],[6,0]],'#4b3b52');ctx.fillStyle='#e0566b';R_(-0.7,-52,1.4,12);const fw=Math.sin((t||0)*3.2+s)*2.4;poly([[0.7,-52],[9+fw,-49+fw*0.35],[0.7,-46]],'#ffd24a')},
+  stall(s,t){shadow(22);ctx.fillStyle='#b98457';R_(-16,-14,32,14);ctx.fillStyle='#ffe9a8';R_(-12,-19,24,5);
+    for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#fff':ROOFS[s%5];R_(-18+i*6,-32+Math.sin((t||0)*3+i*0.9)*0.9,6,11)}ctx.fillStyle='#6b4f3a';R_(-17,-32,1.5,32);R_(15.5,-32,1.5,32)},
+  garden(s,t){ctx.fillStyle='#6c4a34';ctx.beginPath();ctx.ellipse(0,0,24,8,0,0,7);ctx.fill();ctx.fillStyle='#5aa94e';ctx.beginPath();ctx.ellipse(0,-1,21,6.5,0,0,7);ctx.fill();
+    for(let i=0;i<9;i++){const a=i*2.4,x=Math.cos(a)*(6+i*1.7)*0.9,y=-1+Math.sin(a)*(6+i)*0.28,sw=Math.sin((t||0)*1.7+i*1.3)*1.6,hy=y-10-(i%3)*2;ctx.strokeStyle='#3c8a45';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+sw,hy+1);ctx.stroke();ctx.fillStyle=FLOW[(i+s)%5];ctx.beginPath();ctx.arc(x+sw,hy,3.2,0,7);ctx.fill();ctx.fillStyle='#fff6a8';ctx.beginPath();ctx.arc(x+sw,hy,1,0,7);ctx.fill()}}
 };
 const BH={house:46,cottage:40,lighthouse:74,windmill:56,monument:80,tent:54,stall:34,garden:24};
 const BW={house:46,cottage:42,lighthouse:24,windmill:48,monument:30,tent:50,stall:40,garden:50};
@@ -274,6 +299,10 @@ function stormCloud(x,y,t){
   ctx.fillStyle='#6f7790';[[0,0,15],[14,-4,12],[-14,-2,11],[26,3,9]].forEach(c=>{ctx.beginPath();ctx.arc(x+c[0],y+c[1],c[2],0,7);ctx.fill()});
   ctx.strokeStyle='rgba(170,200,255,.85)';ctx.lineWidth=1.6;
   for(let i=0;i<7;i++){const px=x-20+i*8,ph=(t*1.8+i*.37)%1;ctx.beginPath();ctx.moveTo(px,y+10+ph*34);ctx.lineTo(px-2,y+16+ph*34);ctx.stroke()}
+  /* relámpago de vez en cuando */
+  const f=Math.sin(t*0.55+x*0.07);
+  if(f>0.965){ctx.strokeStyle='rgba(255,243,160,.95)';ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(x+4,y+12);ctx.lineTo(x-3,y+26);ctx.lineTo(x+3,y+27);ctx.lineTo(x-4,y+44);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,220,.35)';ctx.beginPath();ctx.arc(x+6,y,24,0,7);ctx.fill()}
 }
 function rainbow(){
   const cs=['#ff6b6b','#ffb347','#ffe66d','#7bd88f','#5dade2','#a78bfa'];
@@ -310,8 +339,9 @@ function easeBack(x){const c=1.70158+1;return 1+c*Math.pow(x-1,3)+1.70158*Math.p
 function sceneObjects(t){
   const list=[],days=dayCount(),months=ymd().months;
   list.push({y:0,fn(){const h=drawTree(t,days,months);hits.push({x:-45,y:-h,w:90,h:h+6,ref:{kind:'tree'}});glows.push({k:'tree',x:0,y:-50})}});
+  const L=byYear()?layoutRanks():null,at=o=>L?slotPos(L.rank.get(o.id)):slotPos(o.slot);
   state.wishes.forEach(w=>{
-    const p=slotPos(w.slot),c=WC[w.cat]||WC.suenos,s=hash(w.id);
+    const p=at(w),c=WC[w.cat]||WC.suenos,s=hash(w.id);
     list.push({y:p.y,fn(){
       ctx.save();ctx.translate(p.x,p.y);
       if(!w.done){
@@ -329,7 +359,7 @@ function sceneObjects(t){
     }});
   });
   state.miles.forEach(m=>{
-    const p=slotPos(m.slot),c=MT[m.type]||MT.recuerdo,s=hash(m.id);
+    const p=at(m),c=MT[m.type]||MT.recuerdo,s=hash(m.id);
     list.push({y:p.y,fn(){
       ctx.save();ctx.translate(p.x,p.y);
       const k=pops[m.id]?clamp((now()-pops[m.id])/0.9,0,1):1,sc=k<1?Math.max(0.001,easeBack(k)):1;
@@ -355,9 +385,38 @@ function sceneObjects(t){
   }
   /* barquito */
   const ba=t*0.09,bx=Math.cos(ba)*R*1.22,by=Math.sin(ba)*R*1.22*0.6;
-  list.push({y:by+400,fn(){ctx.save();ctx.translate(bx,by);ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(0,3,20,5,0,0,7);ctx.fill();
+  list.push({y:by+400,fn(){ctx.save();ctx.translate(bx,by+Math.sin(t*1.5)*1.8);ctx.rotate(Math.sin(t*1.2)*0.045);ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(0,3,20,5,0,0,7);ctx.fill();
     poly([[-13,-4],[13,-4],[9,4],[-9,4]],'#b9533f');ctx.fillStyle='#6b4f3a';R_(-0.7,-24,1.4,20);poly([[1,-23],[12,-8],[1,-8]],'#fff8e8');ctx.restore()}});
   return list;
+}
+
+/* Cada año es un anillo alrededor del árbol: lo más viejo, cerca; lo nuevo, hacia la orilla. Los planes pendientes quedan en el anillo de afuera. */
+function drawYears(){
+  const L=layoutRanks();if(!L.n)return;
+  ctx.save();
+  L.groups.forEach((g,gi)=>{
+    const rIn=R0+SP*Math.sqrt(Math.max(g.start-0.5,0)),rOut=R0+SP*Math.sqrt(g.start+g.count-0.5);
+    if(gi>0){ctx.setLineDash([7,9]);ctx.strokeStyle='rgba(255,255,255,.42)';ctx.lineWidth=1.8;ctx.beginPath();ctx.ellipse(0,0,rIn,rIn*0.6,0,0,7);ctx.stroke();ctx.setLineDash([])}
+  });
+  ctx.restore();
+}
+/* Los números de los años van encima de todo, en una etiqueta pequeña, para que siempre se lean */
+function drawYearLabels(){
+  const L=layoutRanks();if(!L.n)return;
+  ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+  L.groups.forEach((g,gi)=>{
+    const rIn=R0+SP*Math.sqrt(Math.max(g.start-0.5,0)),rOut=R0+SP*Math.sqrt(g.start+g.count-0.5),rm=(rIn+rOut)/2;
+    const label=g.y===PEND?'Por cumplir 🚩':String(g.y);
+    ctx.font='700 15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+    const w=ctx.measureText(label).width+16;
+    /* cada año va en un ángulo distinto, para que las etiquetas de anillos finos no se amontonen */
+    [Math.PI*0.5+gi*0.8,Math.PI*1.5+gi*0.8].forEach(a=>{
+      const x=Math.cos(a)*rm,y=Math.sin(a)*rm*0.6;
+      ctx.fillStyle='rgba(24,70,48,.62)';ctx.beginPath();ctx.roundRect(x-w/2,y-11,w,22,11);ctx.fill();
+      ctx.fillStyle='#fff';ctx.fillText(label,x,y+0.5);
+    });
+  });
+  ctx.restore();
 }
 
 function islandPath(sc){
@@ -387,8 +446,23 @@ function draw(t){
   ctx.save();islandPath(1);ctx.clip();islandPath(0.86);ctx.fillStyle=pc('g1',d);ctx.fill();
   for(let i=0;i<46;i++){const a=rnd(i+500)*6.283,r=Math.sqrt(rnd(i+600))*0.9,x=Math.cos(a)*R*r,y=Math.sin(a)*R*r*0.6;ctx.strokeStyle='rgba(30,90,40,.28)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x-4,y-4);ctx.moveTo(x,y);ctx.lineTo(x,y-5);ctx.moveTo(x+3,y);ctx.lineTo(x+4,y-4);ctx.stroke()}
   ctx.restore();
+  /* años pintados en el suelo (solo si la isla se organiza por año) */
+  if(byYear())drawYears();
   /* objetos ordenados por profundidad */
   const objs=sceneObjects(t);objs.sort((a,b)=>a.y-b.y);objs.forEach(o=>o.fn());
+  if(byYear())drawYearLabels();
+  /* vida de día: gaviotas, mariposas en los jardines y hojas que caen del árbol */
+  if(d>0.35){
+    ctx.save();ctx.globalAlpha=Math.min(1,(d-0.35)*2);
+    for(let i=0;i<4;i++){const span=R*4,x=((t*(20+i*4)+i*span/4)%span)-span/2,y=-R*0.62-i*34+Math.sin(t*1.4+i*2)*9,fl=Math.sin(t*9+i*1.7)*5;
+      ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(x-9,y+fl*0.3);ctx.quadraticCurveTo(x-4,y-fl,x,y);ctx.quadraticCurveTo(x+4,y-fl,x+9,y+fl*0.3);ctx.stroke()}
+    glows.forEach((l,gi)=>{if(l.k!=='garden')return;
+      for(let b=0;b<2;b++){const a=t*0.9+gi*2+b*3.1,x=l.x+Math.cos(a)*(16+b*6),y=l.y-24+Math.sin(a*1.7)*7,w=Math.abs(Math.sin(t*11+b+gi))*3.4+0.6;
+        ctx.fillStyle=b?'#ffb347':'#ff8fb1';ctx.beginPath();ctx.ellipse(x-1.6,y,w,2.4,-.5,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(x+1.6,y,w,2.4,.5,0,7);ctx.fill()}});
+    for(let i=0;i<6;i++){const ph=(t*0.12+i/6)%1,x=Math.cos(i*2.1)*46+Math.sin(t*0.9+i*1.9)*14,y=-70+ph*72;
+      ctx.fillStyle=i%2?'rgba(105,197,100,.85)':'rgba(255,178,190,.85)';ctx.beginPath();ctx.ellipse(x,y,3.2,1.7,t*1.2+i,0,7);ctx.fill()}
+    ctx.restore();
+  }
   /* nubes de paso (solo de día) */
   const ca=0.28*d+0.05;
   for(let i=0;i<3;i++){const span=R*5,x=((t*7+i*span/3+rnd(i)*200)%span)-span/2,y=-R*0.55+i*R*0.5;cloud(x,y,1.4+i*.3,ca)}
@@ -403,7 +477,7 @@ function draw(t){
     ctx.globalCompositeOperation='lighter';
     const lamp=(x,y,r,c,a)=>{const gr=ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba('+c+','+(a*night).toFixed(3)+')');gr.addColorStop(1,'rgba('+c+',0)');ctx.fillStyle=gr;ctx.fillRect(x-r,y-r,r*2,r*2)};
     glows.forEach(l=>{
-      if(l.k==='house'||l.k==='cottage'){lamp(l.x+9,l.y-14,24,'255,205,110',.75);lamp(l.x-10,l.y-14,18,'255,205,110',.5)}
+      if(l.k==='house'||l.k==='cottage'){const fk=0.9+0.1*Math.sin(t*6+l.x*0.3)+0.04*Math.sin(t*13+l.y);lamp(l.x+9,l.y-14,24,'255,205,110',.75*fk);lamp(l.x-10,l.y-14,18,'255,205,110',.5*fk)}
       else if(l.k==='tent'){for(let i=0;i<5;i++)lamp(l.x-16+i*8,l.y-18+Math.abs(i-2)*-1.5+6,10,'255,230,150',.8)}
       else if(l.k==='stall'){lamp(l.x,l.y-16,26,'255,200,120',.8)}
       else if(l.k==='monument'){lamp(l.x,l.y-80,22,'255,230,150',.7)}
@@ -450,7 +524,7 @@ function tap(sx,sy){
   for(let i=hits.length-1;i>=0;i--){const h=hits[i];if(wx>=h.x&&wx<=h.x+h.w&&wy>=h.y&&wy<=h.y+h.h){
     const r=h.ref;if(r.kind==='tree')viewTree();else viewDetail(r.kind,r.id);return}}
 }
-function focusOn(x,y,zoom){cam.moved=true;cam.tgt={x0:cam.x,y0:cam.y,z0:cam.z,x,y:y-24,z:clamp(zoom||cam.fit*1.8,cam.fit*0.55,cam.fit*4),t0:now(),dur:1.1}}
+function focusOn(x,y,zoom){cam.moved=true;cam.tgt={x0:cam.x,y0:cam.y,z0:cam.z,x,y:y-24,z:clamp(zoom||Math.max(cam.fit*1.8,0.9),cam.fit*0.7,Math.max(cam.fit*4,1.6)),t0:now(),dur:1.1}}
 
 /* ============ hojas (diálogo) ============ */
 const dlg=$('#sheet'),sbody=$('#sbody');
@@ -538,7 +612,7 @@ function toggleWish(id){
   const w=state.wishes.find(x=>x.id===id);if(!w)return;
   if(!w.done){
     w.done=true;w.doneDate=todayISO();w.doneT=Date.now();commit();pops[w.id]=now()+0.9;
-    closeSheet();const p=slotPos(w.slot);setTimeout(()=>{pops[w.id]=now();focusOn(p.x,p.y)},180);
+    closeSheet();const p=posOf(w);setTimeout(()=>{pops[w.id]=now();focusOn(p.x,p.y)},180);
     toast('🏗️ ¡Se construyó algo nuevo en la isla!');
   }else{w.done=false;commit();viewWishes()}
 }
@@ -564,7 +638,7 @@ function viewAddMilestone(){
     const file=f.p.files[0];
     if(file){try{await savePhoto(m.id,file);m.photo=true}catch(err){toast('No pude guardar la foto')}}
     state.miles.push(m);commit();fit();pops[m.id]=now()+0.9;closeSheet();
-    const p=slotPos(m.slot);setTimeout(()=>{pops[m.id]=now();focusOn(p.x,p.y)},180);toast('🏗️ ¡Hito construido!');
+    const p=posOf(m);setTimeout(()=>{pops[m.id]=now();focusOn(p.x,p.y)},180);toast('🏗️ ¡Hito construido!');
   })});
 }
 
@@ -601,14 +675,14 @@ function viewDetail(kind,id){
       if(file){try{await savePhoto(o.id,file);o.photo=true}catch(err){toast('No pude guardar la foto')}}
       commit();toast('Guardado ✓');viewDetail(kind,id);
     });
-    const peace=$('#peace',b);if(peace)peace.addEventListener('click',()=>{o.resolvedOn=todayISO();commit();closeSheet();const p=slotPos(o.slot);focusOn(p.x,p.y);toast('🌈 ¡Salió el arcoíris!')});
+    const peace=$('#peace',b);if(peace)peace.addEventListener('click',()=>{o.resolvedOn=todayISO();commit();closeSheet();const p=posOf(o);focusOn(p.x,p.y);toast('🌈 ¡Salió el arcoíris!')});
     const comp=$('#complete',b);if(comp)comp.addEventListener('click',()=>toggleWish(id));
     const undo=$('#undo',b);if(undo)undo.addEventListener('click',()=>{o.done=false;commit();closeSheet();toast('Vuelve a ser un plan pendiente')});
     $('#del',b).addEventListener('click',async()=>{
       if(!confirm('¿Eliminar esto de la isla? No se puede deshacer.'))return;
       if(isW)state.wishes=state.wishes.filter(x=>x.id!==id);else state.miles=state.miles.filter(x=>x.id!==id);
       try{await dbReady;await idb.del('f-'+id)}catch(e){}
-      commit();closeSheet();toast('Eliminado');
+      commit();fit();closeSheet();toast('Eliminado');
     });
   });
 }
@@ -624,6 +698,9 @@ function viewSettings(){
       <label class="f">Juntos desde</label><input type="date" name="s" value="${esc(state.since)}" required>
       <label class="f">Hora del mundo</label>
       <div class="seg"><label><input type="radio" name="tm" value="auto" ${tm==='auto'?'checked':''}>🕐 Real</label><label><input type="radio" name="tm" value="day" ${tm==='day'?'checked':''}>☀️ Día</label><label><input type="radio" name="tm" value="night" ${tm==='night'?'checked':''}>🌙 Noche</label></div>
+      <label class="f">Cómo se acomoda la isla</label>
+      <div class="seg"><label><input type="radio" name="ly" value="anios" ${byYear()?'checked':''}>📅 Por año</label><label><input type="radio" name="ly" value="llegada" ${byYear()?'':'checked'}>🌀 Como van llegando</label></div>
+      <p class="sub" style="margin:6px 0 0">Por año: lo más viejo queda cerca del árbol, y cada año es un anillo con su número pintado en el suelo.</p>
       <button class="btn" type="submit">Guardar ajustes</button>
     </form>
     <h2 style="margin-top:26px;font-size:18px">Respaldo 💾</h2>
@@ -632,7 +709,7 @@ function viewSettings(){
     <input type="file" id="impf" accept="application/json,.json" hidden>
     <div class="note">Privacidad: nada de lo que escribes o subes aquí sale de tu teléfono.</div>`,
   b=>{
-    $('#sf',b).addEventListener('submit',e=>{e.preventDefault();const f=e.target;state.names={a:f.a.value.trim(),b:f.b.value.trim()};state.since=f.s.value;state.settings.time=f.tm.value;commit();refreshHud();closeSheet();toast('Ajustes guardados')});
+    $('#sf',b).addEventListener('submit',e=>{e.preventDefault();const f=e.target;state.names={a:f.a.value.trim(),b:f.b.value.trim()};state.since=f.s.value;state.settings.time=f.tm.value;const antes=state.settings.layout;state.settings.layout=f.ly.value;if(antes!==state.settings.layout){cam.moved=false}commit();fit();refreshHud();closeSheet();toast('Ajustes guardados')});
     $('#exp',b).addEventListener('click',exportBackup);
     $('#imp',b).addEventListener('click',()=>$('#impf',b).click());
     $('#impf',b).addEventListener('change',e=>importBackup(e.target.files[0]));
